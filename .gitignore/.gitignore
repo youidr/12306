@@ -1,0 +1,249 @@
+#统一差头部信息
+headers ={
+        'User-Agent':r'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3178.0 Safari/537.36',
+        'Host':'kyfw.12306.cn',
+        }
+#需要添加下面这个cookie
+
+#余票查询  不用登录
+url1 = 'https://kyfw.12306.cn/otn/leftTicket/queryZ   # 查询地址  
+#查询前先添加一下cookie设备信息到头部信息 下面正式登录后再换个设备信息
+headers['Cookie'] = 'RAIL_DEVICEID=J3KL0MQuTTb1Bs96vKCmO4o1Wa9TyfY5WB014kQAkqd7hB_I8lT3O9WvrLXzCHdxpse-JWO-Pp_lN3DAcWRa7dXm0LVLFLqWzjGb-B0f2RLZKUg5bJNbkISK6rBIFMj6_DdujXExp8hY58fNDPdWZwG5t6y2CC5i'
+#请求类型  get
+#参数
+leftTicketDTO.train_date='2018-01-22' #出发日期
+from_station = 'HGH'   #出发城市   
+to_station = 'CDW'  #目的城市
+purpose_codes = 'ADULT'  这个参数不知道是什么 是固定的
+
+#返回为json格式
+city = res_data['data']['map'] #城市名字对应的简称
+ticketinfo = res_data['data']['result']  #车次信息 这是一个列表 
+for i in ticketinfo:
+	i = i.split('|')     #是个字符串以 | 分隔信息
+#详细解析这个字符串 每个代表的意思
+0 #列车安全码  加密字符串   购票时用到
+%2FSRxuSg25Xwb6FyrVQaU4Nv%2BIY%2BIW8eYBJNh8rpjqIeziJc2LdC9bwqF5D5igANdUjFhJ2zgpJ0D%0AxXwIZvUppMEEqZT6f8p%2BBidqHvSJNXSqrE%2Bz3X1Hp0zrSWxc5Ciccmyp0%2FyIi5%2BQ%2Fy52WJ%2BRhHnG%0AWhegcnsP4L2zVUxrIM7fj%2FXgNvfNHDFbRmwMZPdoL9dVtqxfClVrLA7q1nx1%2Br9G9zEZICBemjq6%0A9irdVpOcZ7pzGZhqXRKnlkCDsmqJ
+1 #显示预订
+2 # 车次信息具体 56000D222251
+3 #车次名称 D2222
+4 #HGH     #未确定是始发站
+5 #ICW     #未确定是终点站
+6 #HGH     #出发城市
+7 #ICW     #目的城市
+8 #07:34   #出发时间
+9 #22:10   #到达时间
+10 #14:36  #历时
+11 #Y 或者 N  表示是否有票 包括无座
+12 #aPj7H44Ac7ZcPA9jQlv0pSbbwy3EaP5vPQHOhLR5iZDAkVm8 #车辆的另一个信息 后面要提交
+13 #20180122 #出发日期
+14 #3  未知
+15 #H2 #应该是车高或者什么的 后面需要提交
+#后面的具体是干什么的不知道
+23 #软卧   26#无座  28#硬卧   29#硬座  30#二等座  31#一等座  32#商务座
+#有票无票显示 对应的位置    一般有几种显示  
+#1、为空    2、'无'    3、'有'   4、具体张数
+
+
+#在以上执行循环查票 让用户自己预先输入 城市 要买的座位等等 如果查到有票 执行下面的登录过程
+
+#新建一个cookie实例
+cj = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+cookdict = {'RAIL_DEVICEID':"SJbAnnl2bRr42LXu2NxFZPn7ib3pXvFwBfDE0XrxCz3-aFIg9rzTvmBhnPSHnMa_mVWWmOs2nx_fIwKCFMg_Ot9aW0BRHHeNRcpQVorGGsaUL2jhjntqU94nhhadHNk8NRj9kuA6MjUtp6kg4X0gklKZEm3-bmW7"}
+requests.utils.add_dict_to_cookiejar(cj, cookdict)  #把新的设备信息导入cookie
+
+#请求登录验证码
+url2 = "https://kyfw.12306.cn/passport/captcha/captcha-image?login_site=E&module=login&rand=sjrand&0.0858224421220557"
+#后面的 0.0858224421220557  可加可不加  这个是服务器怕浏览器有缓存不加载图片而设置的串 服务器不验证
+req = urllib.request.Request(url2, headers=headers)
+code_data = opener.open(req).read()
+with open('code.jpg','wb') as fc:  #读取图片保存当前文件夹
+	fc.write(code_data)
+	
+#下面是对接打码平台 由于打码平台返回的Y轴计算方式有异需要返回后再处理
+
+#打码平台SDK下载地址 ：http://www.chaojiying.com/api-5.html
+
+chaojiying = Chaojiying_Client('账号', '密码', 'appid')
+im = open('code.jpg', 'rb').read()
+codevalue = chaojiying.PostPic(im, 9004)
+print(codevalue)
+code = codevalue['pic_str']
+pic_id = codevalue['pic_id']
+code = code.replace('|',',').split(',')
+strn = ''
+c = 1
+for x in code:
+	if c % 2 == 0:
+		x = str(int(x) - 20)
+	strn = strn + x + ','
+	c += 1
+code = strn[:-1]
+
+#打码平台返回的json
+{"err_no":0,"err_str":"OK","pic_id":"1662228516102","pic_str":"8vka","md5":"35d5c7f6f53223fbdc5b72783db0c2c0"}
+#执行判断  如果 err_str != 'OK'  重新请求
+
+
+以下所有的POST参数都要经过 urlcode转码
+
+python代码
+data = urllib.parse.urlencode(data).encode('utf-8')
+
+url3 = "https://kyfw.12306.cn/passport/captcha/captcha-check"  #验证码验证
+#POST 参数
+data = {
+	'answer': code,
+	'login_site':'E',
+	'rand': 'sjrand',
+}
+#返回 json 取值 res_code = res['result_code']  验证结果代码  如果是  '4'  表示验证成功  注意这个4是字符串
+res_msg = res['result_message']  #验证结果
+if res_code == '4':
+
+
+url4 = 'https://kyfw.12306.cn/passport/web/login'  #账号密码验证
+#POST 参数
+data = {'username':username,'password':pwd, 'appid':'otn'}
+#返回json  取值 login_msg = res_login['result_message']  #验证结果信息
+login_code = res_login['result_code']   #验证结果代码   如果为 0 表示验证成功   注意这个是数字  0
+
+
+surl = 'https://kyfw.12306.cn/passport/web/auth/uamtk' #登录第一次验证
+#POST 参数
+data = {'appid':'otn'}    固定值 目的是验证一个uamtk信息
+#返回值json   取值3个
+uamtk_msg = res_uamtk['result_message']  #验证结果信息
+tk = res_uamtk['newapptk']     #返回新的TK值  (应该是token)
+uamtk_code = res_uamtk['result_code']  #验证结果代码 如果为 0 表示验证成功   注意这个是数字  0
+
+
+uamtkclient = 'https://kyfw.12306.cn/otn/uamauthclient' #登录第二次验证	
+#POST 参数	
+data = {'tk':tk}   #取值前面的tk
+#返回值json  取值2个
+uamauth_code,uamauth_msg = res_uamauth['result_code'],res_uamauth['result_message']
+#这步系统已经返回了  12306账号的名字了 在json里面 不过用不到
+res_uamauth['result_code']   #验证结果代码 如果为 0 表示验证成功   注意这个是数字  0
+
+#下一步要重新获取一次余票信息  前面查的车次信息加密串应该已经变了
+#获取到车次信息的
+secretStr = ticketinfo[0]   #安全码
+leftTicketStr = ticketinfo[12]  #车次信息加密串
+train_date =  ticketinfo[13] #取 13 #20180122 #出发日期 格式化成 2018-0-22
+train_no = ticketinfo[2]  #取 2 # 车次信息具体 56000D222251   后面有一步用到
+stationTrainCode = ticketinfo[3] #取 3 #车次名称 D2222  后面有一步用到
+train_location = ticketinfo[15] #取 15 #H2 #后面有一步用到
+
+url5 = "https://kyfw.12306.cn/otn/login/checkUser"  #预定前用户登录状态验证
+#POST 参数
+data = {'_json_att':''}   #是空值  目的应该是验证用户的session是否到期和重新交换token
+#返回值json  取值一个  res['messages'] 如果是一个空的列表  表示验证成功 
+
+
+url6 = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest' #提交交易请求
+#POST 参数
+data = {
+	'secretStr':secretStr,
+	'train_date':train_date,
+	'back_train_date':'2018-01-15',
+	'tour_flag':'dc',
+	'purpose_codes':'ADULT',
+	'query_from_station_name':'杭州',
+	'query_to_station_name':'成都',
+	'undefined':'',
+}
+#返回值json  取值一个  res['messages'] 如果是一个空的列表  表示验证成功 
+
+url7 = 'https://kyfw.12306.cn/otn/confirmPassenger/initDc' #确认交易状态
+#POST 参数
+data = {'_json_att':''}  #是空值  目的应该是重新交换token
+#返回一个html需要解码出来
+res_initDc = opener.open(initDc).read().decode('utf-8')
+#需要用正则匹配两个字符串
+prog = re.compile('(?!globalrepeatsubmittoken=)[0-9a-z]{32}')
+REPEAT_SUBMIT_TOKEN = prog.findall(res_initDc)[0]
+prog = re.compile('[0-9A-Z]{56}')
+key_check_isChange = prog.findall(res_initDc)[0]
+#得到REPEAT_SUBMIT_TOKEN 和 key_check_isChange
+
+url8 = 'https://kyfw.12306.cn/otn/confirmPassenger/checkOrderInfo' #检查交易信息
+#POST 参数
+data = {
+	'cancel_flag':'2',
+	'bed_level_order_num':'000000000000000000000000000000',
+	'passengerTicketStr':'O,0,1,姓名,1,身份证号码,手机号码,N',
+	'oldPassengerStr':'姓名,1,身份证号码,1_',
+	'tour_flag':'dc',
+	'randCode':'',
+	'whatsSelect':'1',
+	'_json_att':'',
+	'REPEAT_SUBMIT_TOKEN':REPEAT_SUBMIT_TOKEN,
+}
+# 'passengerTicketStr':'O,0,1,姓名,1,身份证号码,手机号码,N',
+#解释下这么的数据  是以 , 隔开的字符串  而且这些数据必须要在账号里面保存的乘车人的信息
+#passengerTicketStr:O  O注意这个是个大写的 O 是二等座   9是商务座   M是一等座 
+#其它座位的编号还没测
+#返回值json  取值一个  res['messages'] 如果是一个空的列表  表示验证成功 
+
+url9 = 'https://kyfw.12306.cn/otn/confirmPassenger/getQueueCount'#获取队列计数
+#POST 参数
+
+data = {
+	'train_date':'Mon Jan 22 2018 00:00:00 GMT+0800 (中国标准时间)',
+	'train_no':train_no,
+	'stationTrainCode':stationTrainCode,
+	'seatType':'O',
+	'fromStationTelecode':'HGH',
+	'toStationTelecode':'CEH',
+	'leftTicket':leftTicketStr,
+	'purpose_codes':'00',
+	'train_location':train_location,
+	'_json_att':'',
+	'REPEAT_SUBMIT_TOKEN':REPEAT_SUBMIT_TOKEN,
+}
+#train_date 出发日期 星期 月 日 年 以上面格式 空格隔开
+#'seatType':'O' 座位信息 O M 9 还有其它的
+#'fromStationTelecode':'HGH', #出发城市代码
+#'toStationTelecode':'CEH'  #目的城市代码
+#其它变量取自前面余票信息保存的变量
+#返回值json  取值一个  res['messages'] 如果是一个空的列表  表示验证成功 
+#res['data']['ticket'] 该座位类型还剩余多少张票
+
+urlover = 'https://kyfw.12306.cn/otn/confirmPassenger/confirmSingleForQueue' #最后确认
+#POST 参数   和URL8类似
+data = {
+	'passengerTicketStr':'O,0,1,姓名,1,身份证号码,手机号码,N',
+	'oldPassengerStr':'姓名,1,身份证号码,1_',
+	'randCode':'',
+	'purpose_codes':'00',
+	'key_check_isChange':key_check_isChange,
+	'leftTicketStr':leftTicketStr,
+	'train_location':train_location,
+	'choose_seats':'',
+	'seatDetailType':'000',
+	'whatsSelect':'1',
+	'roomType':'00',
+	'dwAll':'N',
+	'_json_att':'',
+	'REPEAT_SUBMIT_TOKEN':REPEAT_SUBMIT_TOKEN
+}
+
+#到此如果都返回成功的话 票应该就抢到了 这个没有抓包 不记得是否有返回数据了
+#最后应该添加一个短信的api接口 给自己的手机号码发条短信来支付车票
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
