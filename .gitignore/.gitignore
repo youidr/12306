@@ -130,6 +130,7 @@ res_uamauth['result_code']   #验证结果代码 如果为 0 表示验证成功 
 #下一步要重新获取一次余票信息  前面查的车次信息加密串应该已经变了
 #获取到车次信息的
 secretStr = ticketinfo[0]   #安全码
+secretStr = urllib.parse.unquote(secretStr)
 leftTicketStr = ticketinfo[12]  #车次信息加密串
 train_date =  ticketinfo[13] #取 13 #20180122 #出发日期 格式化成 2018-0-22
 train_no = ticketinfo[2]  #取 2 # 车次信息具体 56000D222251   后面有一步用到
